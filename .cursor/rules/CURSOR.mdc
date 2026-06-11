@@ -1,0 +1,34 @@
+---
+description: Workspace rules for AI side job workflow experiments
+globs:
+alwaysApply: true
+---
+
+# Workspace Rules
+
+## Purpose
+
+This workspace stores reusable assets for the AI Side Job Radar workflow: n8n workflows, Google Sheet setup notes, prompts, and operating playbooks.
+
+## Structure
+
+- `workflows/`: importable or source-controlled workflow files.
+- `docs/`: setup guides, workflow notes, prompts, and decision records.
+- `.cursor/rules/`: workspace operating rules.
+
+## Naming
+
+- Use lowercase kebab-case for files.
+- Include the workflow purpose in file names, for example `ai-side-job-radar-manual-ingest.n8n.json`.
+- Keep secrets out of files. Use placeholders such as `REPLACE_WITH_ANTHROPIC_API_KEY`.
+
+## Workflow Principle
+
+Start with the smallest workflow that proves value:
+
+1. manual input
+2. AI analysis
+3. Google Sheet output
+4. daily habit
+
+Only add automated scraping after recommendation quality is useful.

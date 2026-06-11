@@ -1,0 +1,260 @@
+{
+  "name": "AI Side Job Radar - Manual Ingest",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "3f0d53e2-0d14-44fd-a314-5e8ab6180e01",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "source",
+              "name": "source",
+              "type": "string",
+              "value": "Upwork"
+            },
+            {
+              "id": "jobTitle",
+              "name": "jobTitle",
+              "type": "string",
+              "value": "Replace with job title"
+            },
+            {
+              "id": "jobLink",
+              "name": "jobLink",
+              "type": "string",
+              "value": "https://example.com/job-link"
+            },
+            {
+              "id": "rawRequirement",
+              "name": "rawRequirement",
+              "type": "string",
+              "value": "Paste the job post text here before each manual run."
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e56ae5d6-b75c-4a1c-98ab-8750a084fb81",
+      "name": "Set Job Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -620,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const job = $input.first().json;\nconst profile = {\n  targetMarket: 'English market',\n  availableTime: '2 hours/day',\n  preferredWork: 'AI automation and AI tool setup',\n  toolsKnown: ['Cursor', 'Claude', 'Feishu', 'n8n', 'Google Sheets'],\n  codingLevel: 'beginner Python',\n  meetingPreference: 'async-first, limited meetings',\n  portfolio: 'no public portfolio yet',\n  bestFitProjects: ['Google Sheets automation', 'n8n workflows', 'lead capture', 'email classification', 'AI summaries', 'daily reporting'],\n  avoidProjects: ['machine learning training', 'full-stack SaaS', 'complex backend systems', 'heavy meetings', 'production infrastructure ownership']\n};\n\nconst prompt = `You are an opportunity analyst for a beginner AI automation freelancer.\n\nGoal: decide whether this side job is suitable for Kathy, and produce useful next actions for a Google Sheet.\n\nKathy profile:\n${JSON.stringify(profile, null, 2)}\n\nJob post:\n${JSON.stringify(job, null, 2)}\n\nScore rules:\n- yourMatchScore: 1-10. Current capability match.\n- aiLeverageScore: 1-10. How much Claude/n8n/Sheets can help delivery.\n- asyncFitScore: 1-10. Higher means less meeting dependency.\n- learningValue: 1-10. Higher means useful skill compounding.\n- deliveryRisk: 1-10. Higher means more risk, ambiguity, hidden complexity, or maintenance burden.\n\nRecommendation standard:\n- Favor narrow workflows, clear deliverables, Google Sheets, n8n, Zapier/Make, AI classification, AI summaries, lead capture, reporting, and status tracking.\n- Penalize full-stack apps, ML training, custom backend infrastructure, self-hosted production ownership, complex agents, frequent meetings, and vague enterprise transformation.\n- Be direct. If the job is not suitable, say so in nextAction.\n\nReturn only valid JSON. Do not wrap in markdown. Do not include comments.\nUse exactly these keys:\njobCategory, realNeed, deliverable, requiredTools, requiredSkills, yourMatchScore, aiLeverageScore, asyncFitScore, learningValue, deliveryRisk, recommendedSkillset, learningResource, knowledgeBaseTopic, bestPractice, suggestedPitch, nextAction, notes\n\nFor arrays, return short comma-separated strings instead of JSON arrays.\nFor suggestedPitch, write a concise English proposal under 140 words.`;\n\nreturn [{ json: { ...job, prompt } }];"
+      },
+      "id": "453a0a5b-7735-4a05-ab4a-64d92bad69df",
+      "name": "Build Claude Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -380,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "REPLACE_WITH_ANTHROPIC_API_KEY"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'claude-3-5-haiku-latest', max_tokens: 2000, temperature: 0.2, messages: [{ role: 'user', content: $json.prompt }] }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "d508c240-aa48-4724-8727-fc3c2c35dace",
+      "name": "Analyze With Claude",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -120,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst original = $items('Set Job Input')[0].json;\nconst text = response.content?.[0]?.text || response.body?.content?.[0]?.text || '';\nconst match = text.match(/\\{[\\s\\S]*\\}/);\nif (!match) {\n  throw new Error('Claude response did not contain JSON: ' + text);\n}\n\nlet analysis;\ntry {\n  analysis = JSON.parse(match[0]);\n} catch (error) {\n  throw new Error('Could not parse Claude JSON: ' + error.message + ' Raw: ' + text);\n}\n\nconst score = (value) => {\n  const number = Number(value);\n  if (Number.isNaN(number)) return 0;\n  return Math.max(1, Math.min(10, Math.round(number)));\n};\n\nconst yourMatchScore = score(analysis.yourMatchScore);\nconst aiLeverageScore = score(analysis.aiLeverageScore);\nconst asyncFitScore = score(analysis.asyncFitScore);\nconst learningValue = score(analysis.learningValue);\nconst deliveryRisk = score(analysis.deliveryRisk);\nconst opportunityScore = yourMatchScore + aiLeverageScore + asyncFitScore + learningValue - deliveryRisk;\n\nreturn [{\n  json: {\n    'Date Added': new Date().toISOString().slice(0, 10),\n    'Source': original.source || '',\n    'Job Title': original.jobTitle || '',\n    'Job Link': original.jobLink || '',\n    'Raw Requirement': original.rawRequirement || '',\n    'Job Category': analysis.jobCategory || '',\n    'Real Need': analysis.realNeed || '',\n    'Deliverable': analysis.deliverable || '',\n    'Required Tools': analysis.requiredTools || '',\n    'Required Skills': analysis.requiredSkills || '',\n    'Your Match Score': yourMatchScore,\n    'AI Leverage Score': aiLeverageScore,\n    'Async Fit Score': asyncFitScore,\n    'Learning Value': learningValue,\n    'Delivery Risk': deliveryRisk,\n    'Opportunity Score': opportunityScore,\n    'Recommended Skillset': analysis.recommendedSkillset || '',\n    'Learning Resource': analysis.learningResource || '',\n    'Knowledge Base Topic': analysis.knowledgeBaseTopic || '',\n    'Best Practice': analysis.bestPractice || '',\n    'Suggested Pitch': analysis.suggestedPitch || '',\n    'Next Action': analysis.nextAction || '',\n    'Status': 'New',\n    'Notes': analysis.notes || ''\n  }\n}];"
+      },
+      "id": "cc59fdfc-6bcc-4942-8258-ff920d6420d8",
+      "name": "Parse Sheet Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        140,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_WITH_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Opportunities"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date Added": "={{ $json['Date Added'] }}",
+            "Source": "={{ $json.Source }}",
+            "Job Title": "={{ $json['Job Title'] }}",
+            "Job Link": "={{ $json['Job Link'] }}",
+            "Raw Requirement": "={{ $json['Raw Requirement'] }}",
+            "Job Category": "={{ $json['Job Category'] }}",
+            "Real Need": "={{ $json['Real Need'] }}",
+            "Deliverable": "={{ $json.Deliverable }}",
+            "Required Tools": "={{ $json['Required Tools'] }}",
+            "Required Skills": "={{ $json['Required Skills'] }}",
+            "Your Match Score": "={{ $json['Your Match Score'] }}",
+            "AI Leverage Score": "={{ $json['AI Leverage Score'] }}",
+            "Async Fit Score": "={{ $json['Async Fit Score'] }}",
+            "Learning Value": "={{ $json['Learning Value'] }}",
+            "Delivery Risk": "={{ $json['Delivery Risk'] }}",
+            "Opportunity Score": "={{ $json['Opportunity Score'] }}",
+            "Recommended Skillset": "={{ $json['Recommended Skillset'] }}",
+            "Learning Resource": "={{ $json['Learning Resource'] }}",
+            "Knowledge Base Topic": "={{ $json['Knowledge Base Topic'] }}",
+            "Best Practice": "={{ $json['Best Practice'] }}",
+            "Suggested Pitch": "={{ $json['Suggested Pitch'] }}",
+            "Next Action": "={{ $json['Next Action'] }}",
+            "Status": "={{ $json.Status }}",
+            "Notes": "={{ $json.Notes }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "79f08a74-5fd2-4020-a3ed-c1198c97b124",
+      "name": "Append To Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Manual MVP: edit Set Job Input, run once, review one appended row in Google Sheets. After the scoring quality is useful, add automated sourcing.",
+        "height": 180,
+        "width": 280
+      },
+      "id": "f645380e-ac21-4522-bb4a-2d405ce8947c",
+      "name": "Workflow Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -860,
+        -260
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Job Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Job Input": {
+      "main": [
+        [
+          {
+            "node": "Build Claude Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Claude Prompt": {
+      "main": [
+        [
+          {
+            "node": "Analyze With Claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze With Claude": {
+      "main": [
+        [
+          {
+            "node": "Parse Sheet Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Sheet Row": {
+      "main": [
+        [
+          {
+            "node": "Append To Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-06-11T00:00:00.000Z",
+  "versionId": "1"
+}
