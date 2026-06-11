@@ -34,7 +34,9 @@ Date Added
 Source
 Job Title
 Job Link
+Recruiter Contact
 Raw Requirement
+Full Job Requirement
 Job Category
 Real Need
 Deliverable
@@ -48,6 +50,7 @@ Delivery Risk
 Opportunity Score
 Recommended Skillset
 Learning Resource
+Learning Resource Links
 Knowledge Base Topic
 Best Practice
 Suggested Pitch
@@ -55,6 +58,8 @@ Next Action
 Status
 Notes
 ```
+
+For best results, paste the complete job post into `rawRequirement`. The workflow can only preserve and analyze the requirement text you provide. Recruiter contact details are extracted only when they appear in the job post.
 
 ## n8n Import
 
@@ -109,7 +114,7 @@ Also connect your Google Sheets credential in n8n.
    - `source`
    - `jobTitle`
    - `jobLink`
-   - `rawRequirement`
+   - `rawRequirement` with the full job post text
 3. Run the workflow.
 4. Check the `Opportunities` tab.
 
