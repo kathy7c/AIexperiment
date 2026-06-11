@@ -6,6 +6,8 @@ This MVP handles one job post at a time:
 
 ```text
 Manual job input
+-> Fetch job page from jobLink
+-> Clean page text
 -> OpenAI opportunity analysis
 -> Score calculation
 -> Append row to Google Sheet
@@ -59,7 +61,16 @@ Status
 Notes
 ```
 
-For best results, paste the complete job post into `rawRequirement`. The workflow can only preserve and analyze the requirement text you provide. Recruiter contact details are extracted only when they appear in the job post.
+For normal use, you only need to fill `jobLink`. The workflow tries to fetch and clean the job page automatically.
+
+`rawRequirement` is optional. Use it only when:
+
+- the job platform blocks automated fetching
+- the link requires login
+- the fetched text is incomplete
+- you want to test with pasted job text
+
+Recruiter contact details are extracted only when they appear in the fetched or pasted job text.
 
 ## n8n Import
 
@@ -114,9 +125,9 @@ Also connect your Google Sheets credential in n8n.
    - `source`
    - `jobTitle`
    - `jobLink`
-   - `rawRequirement` with the full job post text
-3. Run the workflow.
-4. Check the `Opportunities` tab.
+3. Leave `rawRequirement` blank for normal tests.
+4. Run the workflow.
+5. Check the `Opportunities` tab.
 
 ## Recommended First Test Job
 
@@ -126,7 +137,7 @@ Use a narrow automation job, for example:
 Source: Upwork
 Job Title: Zapier Automation Workflow Using Clickfunnel & Synthflow AI
 Job Link: https://www.upwork.com/freelance-jobs/apply/Zapier-Automation-Workflow-Using-Clickfunnel-Synthflow_~021889529082921782234/
-Raw Requirement: I need help setting up an automated lead management system using Zapier for a tiny home business. The workflow should capture leads, save them into Google Sheets, and help with follow-up.
+Raw Requirement: leave blank first. If Upwork blocks fetching, paste the job post text here as fallback.
 ```
 
 ## Decision Rule
