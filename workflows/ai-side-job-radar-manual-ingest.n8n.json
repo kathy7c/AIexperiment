@@ -55,10 +55,10 @@
     },
     {
       "parameters": {
-        "jsCode": "const job = $input.first().json;\nconst profile = {\n  targetMarket: 'English market',\n  availableTime: '2 hours/day',\n  preferredWork: 'AI automation and AI tool setup',\n  toolsKnown: ['Cursor', 'Claude', 'Feishu', 'n8n', 'Google Sheets'],\n  codingLevel: 'beginner Python',\n  meetingPreference: 'async-first, limited meetings',\n  portfolio: 'no public portfolio yet',\n  bestFitProjects: ['Google Sheets automation', 'n8n workflows', 'lead capture', 'email classification', 'AI summaries', 'daily reporting'],\n  avoidProjects: ['machine learning training', 'full-stack SaaS', 'complex backend systems', 'heavy meetings', 'production infrastructure ownership']\n};\n\nconst prompt = `You are an opportunity analyst for a beginner AI automation freelancer.\n\nGoal: decide whether this side job is suitable for Kathy, and produce useful next actions for a Google Sheet.\n\nKathy profile:\n${JSON.stringify(profile, null, 2)}\n\nJob post:\n${JSON.stringify(job, null, 2)}\n\nScore rules:\n- yourMatchScore: 1-10. Current capability match.\n- aiLeverageScore: 1-10. How much Claude/n8n/Sheets can help delivery.\n- asyncFitScore: 1-10. Higher means less meeting dependency.\n- learningValue: 1-10. Higher means useful skill compounding.\n- deliveryRisk: 1-10. Higher means more risk, ambiguity, hidden complexity, or maintenance burden.\n\nRecommendation standard:\n- Favor narrow workflows, clear deliverables, Google Sheets, n8n, Zapier/Make, AI classification, AI summaries, lead capture, reporting, and status tracking.\n- Penalize full-stack apps, ML training, custom backend infrastructure, self-hosted production ownership, complex agents, frequent meetings, and vague enterprise transformation.\n- Be direct. If the job is not suitable, say so in nextAction.\n\nReturn only valid JSON. Do not wrap in markdown. Do not include comments.\nUse exactly these keys:\njobCategory, realNeed, deliverable, requiredTools, requiredSkills, yourMatchScore, aiLeverageScore, asyncFitScore, learningValue, deliveryRisk, recommendedSkillset, learningResource, knowledgeBaseTopic, bestPractice, suggestedPitch, nextAction, notes\n\nFor arrays, return short comma-separated strings instead of JSON arrays.\nFor suggestedPitch, write a concise English proposal under 140 words.`;\n\nreturn [{ json: { ...job, prompt } }];"
+        "jsCode": "const job = $input.first().json;\nconst profile = {\n  targetMarket: 'English market',\n  availableTime: '2 hours/day',\n  preferredWork: 'AI automation and AI tool setup',\n  toolsKnown: ['Cursor', 'OpenAI API', 'Feishu', 'n8n', 'Google Sheets'],\n  codingLevel: 'beginner Python',\n  meetingPreference: 'async-first, limited meetings',\n  portfolio: 'no public portfolio yet',\n  bestFitProjects: ['Google Sheets automation', 'n8n workflows', 'lead capture', 'email classification', 'AI summaries', 'daily reporting'],\n  avoidProjects: ['machine learning training', 'full-stack SaaS', 'complex backend systems', 'heavy meetings', 'production infrastructure ownership']\n};\n\nconst prompt = `You are an opportunity analyst for a beginner AI automation freelancer.\n\nGoal: decide whether this side job is suitable for Kathy, and produce useful next actions for a Google Sheet.\n\nKathy profile:\n${JSON.stringify(profile, null, 2)}\n\nJob post:\n${JSON.stringify(job, null, 2)}\n\nScore rules:\n- yourMatchScore: 1-10. Current capability match.\n- aiLeverageScore: 1-10. How much OpenAI/n8n/Sheets can help delivery.\n- asyncFitScore: 1-10. Higher means less meeting dependency.\n- learningValue: 1-10. Higher means useful skill compounding.\n- deliveryRisk: 1-10. Higher means more risk, ambiguity, hidden complexity, or maintenance burden.\n\nRecommendation standard:\n- Favor narrow workflows, clear deliverables, Google Sheets, n8n, Zapier/Make, AI classification, AI summaries, lead capture, reporting, and status tracking.\n- Penalize full-stack apps, ML training, custom backend infrastructure, self-hosted production ownership, complex agents, frequent meetings, and vague enterprise transformation.\n- Be direct. If the job is not suitable, say so in nextAction.\n\nReturn only valid JSON. Do not wrap in markdown. Do not include comments.\nUse exactly these keys:\njobCategory, realNeed, deliverable, requiredTools, requiredSkills, yourMatchScore, aiLeverageScore, asyncFitScore, learningValue, deliveryRisk, recommendedSkillset, learningResource, knowledgeBaseTopic, bestPractice, suggestedPitch, nextAction, notes\n\nFor arrays, return short comma-separated strings instead of JSON arrays.\nFor suggestedPitch, write a concise English proposal under 140 words.`;\n\nreturn [{ json: { ...job, prompt } }];"
       },
       "id": "453a0a5b-7735-4a05-ab4a-64d92bad69df",
-      "name": "Build Claude Prompt",
+      "name": "Build OpenAI Prompt",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -69,17 +69,13 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.anthropic.com/v1/messages",
+        "url": "https://api.openai.com/v1/chat/completions",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
             {
-              "name": "x-api-key",
-              "value": "REPLACE_WITH_ANTHROPIC_API_KEY"
-            },
-            {
-              "name": "anthropic-version",
-              "value": "2023-06-01"
+              "name": "Authorization",
+              "value": "Bearer REPLACE_WITH_OPENAI_API_KEY"
             },
             {
               "name": "content-type",
@@ -89,7 +85,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'claude-3-5-haiku-latest', max_tokens: 2000, temperature: 0.2, messages: [{ role: 'user', content: $json.prompt }] }) }}",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 2000, temperature: 0.2, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: 'Return only valid JSON.' }, { role: 'user', content: $json.prompt }] }) }}",
         "options": {
           "response": {
             "response": {
@@ -99,7 +95,7 @@
         }
       },
       "id": "d508c240-aa48-4724-8727-fc3c2c35dace",
-      "name": "Analyze With Claude",
+      "name": "Analyze With OpenAI",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -109,7 +105,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst original = $items('Set Job Input')[0].json;\nconst text = response.content?.[0]?.text || response.body?.content?.[0]?.text || '';\nconst match = text.match(/\\{[\\s\\S]*\\}/);\nif (!match) {\n  throw new Error('Claude response did not contain JSON: ' + text);\n}\n\nlet analysis;\ntry {\n  analysis = JSON.parse(match[0]);\n} catch (error) {\n  throw new Error('Could not parse Claude JSON: ' + error.message + ' Raw: ' + text);\n}\n\nconst score = (value) => {\n  const number = Number(value);\n  if (Number.isNaN(number)) return 0;\n  return Math.max(1, Math.min(10, Math.round(number)));\n};\n\nconst yourMatchScore = score(analysis.yourMatchScore);\nconst aiLeverageScore = score(analysis.aiLeverageScore);\nconst asyncFitScore = score(analysis.asyncFitScore);\nconst learningValue = score(analysis.learningValue);\nconst deliveryRisk = score(analysis.deliveryRisk);\nconst opportunityScore = yourMatchScore + aiLeverageScore + asyncFitScore + learningValue - deliveryRisk;\n\nreturn [{\n  json: {\n    'Date Added': new Date().toISOString().slice(0, 10),\n    'Source': original.source || '',\n    'Job Title': original.jobTitle || '',\n    'Job Link': original.jobLink || '',\n    'Raw Requirement': original.rawRequirement || '',\n    'Job Category': analysis.jobCategory || '',\n    'Real Need': analysis.realNeed || '',\n    'Deliverable': analysis.deliverable || '',\n    'Required Tools': analysis.requiredTools || '',\n    'Required Skills': analysis.requiredSkills || '',\n    'Your Match Score': yourMatchScore,\n    'AI Leverage Score': aiLeverageScore,\n    'Async Fit Score': asyncFitScore,\n    'Learning Value': learningValue,\n    'Delivery Risk': deliveryRisk,\n    'Opportunity Score': opportunityScore,\n    'Recommended Skillset': analysis.recommendedSkillset || '',\n    'Learning Resource': analysis.learningResource || '',\n    'Knowledge Base Topic': analysis.knowledgeBaseTopic || '',\n    'Best Practice': analysis.bestPractice || '',\n    'Suggested Pitch': analysis.suggestedPitch || '',\n    'Next Action': analysis.nextAction || '',\n    'Status': 'New',\n    'Notes': analysis.notes || ''\n  }\n}];"
+        "jsCode": "const response = $input.first().json;\nconst original = $items('Set Job Input')[0].json;\nconst text = response.choices?.[0]?.message?.content || response.body?.choices?.[0]?.message?.content || '';\nconst match = text.match(/\\{[\\s\\S]*\\}/);\nif (!match) {\n  throw new Error('OpenAI response did not contain JSON: ' + text);\n}\n\nlet analysis;\ntry {\n  analysis = JSON.parse(match[0]);\n} catch (error) {\n  throw new Error('Could not parse OpenAI JSON: ' + error.message + ' Raw: ' + text);\n}\n\nconst score = (value) => {\n  const number = Number(value);\n  if (Number.isNaN(number)) return 0;\n  return Math.max(1, Math.min(10, Math.round(number)));\n};\n\nconst yourMatchScore = score(analysis.yourMatchScore);\nconst aiLeverageScore = score(analysis.aiLeverageScore);\nconst asyncFitScore = score(analysis.asyncFitScore);\nconst learningValue = score(analysis.learningValue);\nconst deliveryRisk = score(analysis.deliveryRisk);\nconst opportunityScore = yourMatchScore + aiLeverageScore + asyncFitScore + learningValue - deliveryRisk;\n\nreturn [{\n  json: {\n    'Date Added': new Date().toISOString().slice(0, 10),\n    'Source': original.source || '',\n    'Job Title': original.jobTitle || '',\n    'Job Link': original.jobLink || '',\n    'Raw Requirement': original.rawRequirement || '',\n    'Job Category': analysis.jobCategory || '',\n    'Real Need': analysis.realNeed || '',\n    'Deliverable': analysis.deliverable || '',\n    'Required Tools': analysis.requiredTools || '',\n    'Required Skills': analysis.requiredSkills || '',\n    'Your Match Score': yourMatchScore,\n    'AI Leverage Score': aiLeverageScore,\n    'Async Fit Score': asyncFitScore,\n    'Learning Value': learningValue,\n    'Delivery Risk': deliveryRisk,\n    'Opportunity Score': opportunityScore,\n    'Recommended Skillset': analysis.recommendedSkillset || '',\n    'Learning Resource': analysis.learningResource || '',\n    'Knowledge Base Topic': analysis.knowledgeBaseTopic || '',\n    'Best Practice': analysis.bestPractice || '',\n    'Suggested Pitch': analysis.suggestedPitch || '',\n    'Next Action': analysis.nextAction || '',\n    'Status': 'New',\n    'Notes': analysis.notes || ''\n  }\n}];"
       },
       "id": "cc59fdfc-6bcc-4942-8258-ff920d6420d8",
       "name": "Parse Sheet Row",
@@ -207,25 +203,25 @@
       "main": [
         [
           {
-            "node": "Build Claude Prompt",
+            "node": "Build OpenAI Prompt",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Build Claude Prompt": {
+    "Build OpenAI Prompt": {
       "main": [
         [
           {
-            "node": "Analyze With Claude",
+            "node": "Analyze With OpenAI",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Analyze With Claude": {
+    "Analyze With OpenAI": {
       "main": [
         [
           {

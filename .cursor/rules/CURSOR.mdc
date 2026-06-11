@@ -20,7 +20,7 @@ This workspace stores reusable assets for the AI Side Job Radar workflow: n8n wo
 
 - Use lowercase kebab-case for files.
 - Include the workflow purpose in file names, for example `ai-side-job-radar-manual-ingest.n8n.json`.
-- Keep secrets out of files. Use placeholders such as `REPLACE_WITH_ANTHROPIC_API_KEY`.
+- Keep secrets out of files. Use placeholders such as `REPLACE_WITH_OPENAI_API_KEY`.
 
 ## Workflow Principle
 

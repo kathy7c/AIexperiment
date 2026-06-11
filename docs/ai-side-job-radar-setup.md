@@ -6,7 +6,7 @@ This MVP handles one job post at a time:
 
 ```text
 Manual job input
--> Claude opportunity analysis
+-> OpenAI opportunity analysis
 -> Score calculation
 -> Append row to Google Sheet
 ```
@@ -66,17 +66,23 @@ workflows/ai-side-job-radar-manual-ingest.n8n.json
 
 Then configure two nodes.
 
-### 1. Analyze With Claude
+### 1. Analyze With OpenAI
 
 Replace:
 
 ```text
-REPLACE_WITH_ANTHROPIC_API_KEY
+REPLACE_WITH_OPENAI_API_KEY
 ```
 
-with your Anthropic API key in n8n. Do not store the key in this repository.
+with your OpenAI API key in n8n. Keep the `Bearer ` prefix in the Authorization header.
 
-If `claude-3-5-haiku-latest` is not available in your Anthropic account, replace the model value in the HTTP body with any Claude model you have access to.
+The default model is:
+
+```text
+gpt-4o-mini
+```
+
+If your OpenAI account does not have access to that model, replace the model value in the HTTP body with any chat model available to your account.
 
 ### 2. Append To Google Sheet
 
