@@ -1,0 +1,330 @@
+{
+  "name": "AI Side Job Radar - Manual Ingest",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "3f0d53e2-0d14-44fd-a314-5e8ab6180e01",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -860,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "source",
+              "name": "source",
+              "type": "string",
+              "value": "Upwork"
+            },
+            {
+              "id": "jobTitle",
+              "name": "jobTitle",
+              "type": "string",
+              "value": "Replace with job title"
+            },
+            {
+              "id": "jobLink",
+              "name": "jobLink",
+              "type": "string",
+              "value": "https://example.com/job-link"
+            },
+            {
+              "id": "rawRequirement",
+              "name": "rawRequirement",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e56ae5d6-b75c-4a1c-98ab-8750a084fb81",
+      "name": "Set Job Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -620,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.jobLink }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; AI-Side-Job-Radar/1.0)"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "986ab66f-7179-4ad7-bebd-4da5a13af8c0",
+      "name": "Fetch Job Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -380,
+        0
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const original = $items('Set Job Input')[0].json;\nconst fetched = $input.first().json;\n\nconst manualRequirement = String(original.rawRequirement || '').trim();\nconst placeholderPattern = /^Paste the job post text here/i;\n\nconst firstString = (...values) => {\n  for (const value of values) {\n    if (typeof value === 'string' && value.trim()) return value;\n  }\n  return '';\n};\n\nconst stripHtml = (text) => String(text || '')\n  .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')\n  .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')\n  .replace(/<noscript[\\s\\S]*?<\\/noscript>/gi, ' ')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/&nbsp;/g, ' ')\n  .replace(/&amp;/g, '&')\n  .replace(/&lt;/g, '<')\n  .replace(/&gt;/g, '>')\n  .replace(/&quot;/g, '\"')\n  .replace(/&#39;/g, \"'\")\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nconst fetchedRaw = firstString(\n  fetched.data,\n  fetched.body,\n  fetched.response,\n  fetched.text,\n  fetched.html,\n  typeof fetched === 'string' ? fetched : ''\n);\n\nconst fetchedText = stripHtml(fetchedRaw).slice(0, 30000);\nlet rawRequirement = '';\nlet requirementSource = '';\n\nif (manualRequirement && !placeholderPattern.test(manualRequirement)) {\n  rawRequirement = manualRequirement;\n  requirementSource = 'manual';\n} else if (fetchedText.length >= 200) {\n  rawRequirement = fetchedText;\n  requirementSource = 'job_link_fetch';\n} else {\n  rawRequirement = 'Job page could not be fetched automatically. Use the Job Link and add the full job requirement manually if this opportunity looks promising.';\n  requirementSource = 'fetch_failed';\n}\n\nreturn [{\n  json: {\n    ...original,\n    rawRequirement,\n    requirementSource,\n    fetchNote: requirementSource === 'fetch_failed' ? 'The site may block automated fetching or require login.' : ''\n  }\n}];"
+      },
+      "id": "c4cc07d2-eb68-4614-aaf2-c7612024f55e",
+      "name": "Prepare Job Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const job = $input.first().json;\nconst profile = {\n  targetMarket: 'English market',\n  availableTime: '2 hours/day',\n  preferredWork: 'AI automation and AI tool setup',\n  toolsKnown: ['Cursor', 'OpenAI API', 'Feishu', 'n8n', 'Google Sheets'],\n  codingLevel: 'beginner Python',\n  meetingPreference: 'async-first, limited meetings',\n  portfolio: 'no public portfolio yet',\n  bestFitProjects: ['Google Sheets automation', 'n8n workflows', 'lead capture', 'email classification', 'AI summaries', 'daily reporting'],\n  avoidProjects: ['machine learning training', 'full-stack SaaS', 'complex backend systems', 'heavy meetings', 'production infrastructure ownership']\n};\n\nconst prompt = `You are an opportunity analyst for a beginner AI automation freelancer.\n\nGoal: decide whether this side job is suitable for Kathy, and produce useful next actions for a Google Sheet.\n\nKathy profile:\n${JSON.stringify(profile, null, 2)}\n\nJob post data:\n${JSON.stringify(job, null, 2)}\n\nScore rules:\n- yourMatchScore: 1-10. Current capability match.\n- aiLeverageScore: 1-10. How much OpenAI/n8n/Sheets can help delivery.\n- asyncFitScore: 1-10. Higher means less meeting dependency.\n- learningValue: 1-10. Higher means useful skill compounding.\n- deliveryRisk: 1-10. Higher means more risk, ambiguity, hidden complexity, or maintenance burden.\n- starterFitScore: 1-10. Higher means Kathy can realistically start now with her current tools and beginner Python.\n\nStarter filter rules:\n- canStartNow must be one of: Yes, Maybe, No.\n- applyPriority must be one of: Apply Now, Build Demo First, Save for Learning, Skip.\n- Mark canStartNow as Yes only when the job is narrow, async-friendly, has a clear deliverable, can be built with Google Sheets/n8n/Zapier/Make/OpenAI, and does not require advanced backend, ML, production infrastructure, frequent meetings, or a strong existing portfolio.\n- Mark Build Demo First when the job is suitable but Kathy needs one small proof/demo before applying confidently.\n- Mark Save for Learning when it teaches useful skills but is too risky to apply now.\n- Mark Skip when the project is vague, too broad, meeting-heavy, full-stack, ML/model-training, infrastructure-heavy, or asks for expert ownership.\n- If job.requirementSource is \"fetch_failed\", use canStartNow \"Maybe\" at best unless the title/link clearly indicates a simple starter workflow.\n\nRecommendation standard:\n- Favor narrow workflows, clear deliverables, Google Sheets, n8n, Zapier/Make, AI classification, AI summaries, lead capture, reporting, and status tracking.\n- Penalize full-stack apps, ML training, custom backend infrastructure, self-hosted production ownership, complex agents, frequent meetings, and vague enterprise transformation.\n- Be direct. If the job is not suitable, say so in nextAction.\n\nExtraction requirements:\n- fullJobRequirement: do not repeat the full raw requirement. Return \"Preserved in Full Job Requirement column\" when job.requirementSource is not \"fetch_failed\". If job.requirementSource is \"fetch_failed\", return the fetch failure message and state that the full requirement is unavailable.\n- recruiterContact: extract recruiter/client contact details if present, such as name, email, website, Slack/Discord, Telegram, booking link, or Upwork/Freelancer profile info. If not present, return \"Not provided\".\n- learningResourceLinks: provide 2-4 directly useful learning URLs for the required skills. Prefer official docs and practical templates.\n- missingProof: what Kathy would need to show before applying, such as \"n8n lead capture demo\". If nothing is needed, return \"None\".\n- firstTwoHourPrep: one concrete prep task Kathy can finish in 2 hours before applying or building a demo.\n- starterFitReason: explain in one sentence why this is or is not starter-friendly.\n\nReturn only valid JSON. Do not wrap in markdown. Do not include comments.\nUse exactly these keys:\nfullJobRequirement, recruiterContact, jobCategory, realNeed, deliverable, requiredTools, requiredSkills, yourMatchScore, aiLeverageScore, asyncFitScore, learningValue, deliveryRisk, opportunityScore, starterFitScore, canStartNow, applyPriority, starterFitReason, missingProof, firstTwoHourPrep, recommendedSkillset, learningResource, learningResourceLinks, knowledgeBaseTopic, bestPractice, suggestedPitch, nextAction, notes\n\nFor arrays, return short comma-separated strings instead of JSON arrays.\nFor suggestedPitch, write a concise English proposal under 140 words.`;\n\nreturn [{ json: { ...job, prompt } }];"
+      },
+      "id": "453a0a5b-7735-4a05-ab4a-64d92bad69df",
+      "name": "Build OpenAI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_WITH_OPENAI_API_KEY"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 2000, temperature: 0.2, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: 'Return only valid JSON.' }, { role: 'user', content: $json.prompt }] }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "d508c240-aa48-4724-8727-fc3c2c35dace",
+      "name": "Analyze With OpenAI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        380,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst original = $items('Prepare Job Text')[0].json;\nconst text = response.choices?.[0]?.message?.content || response.body?.choices?.[0]?.message?.content || '';\nconst match = text.match(/\\{[\\s\\S]*\\}/);\nif (!match) {\n  throw new Error('OpenAI response did not contain JSON: ' + text);\n}\n\nlet analysis;\ntry {\n  analysis = JSON.parse(match[0]);\n} catch (error) {\n  throw new Error('Could not parse OpenAI JSON: ' + error.message + ' Raw: ' + text);\n}\n\nconst score = (value) => {\n  const number = Number(value);\n  if (Number.isNaN(number)) return 0;\n  return Math.max(1, Math.min(10, Math.round(number)));\n};\n\nconst yourMatchScore = score(analysis.yourMatchScore);\nconst aiLeverageScore = score(analysis.aiLeverageScore);\nconst asyncFitScore = score(analysis.asyncFitScore);\nconst learningValue = score(analysis.learningValue);\nconst deliveryRisk = score(analysis.deliveryRisk);\nconst starterFitScore = score(analysis.starterFitScore);\nconst opportunityScore = yourMatchScore + aiLeverageScore + asyncFitScore + learningValue - deliveryRisk;\nconst fullJobRequirement = original.rawRequirement || analysis.fullJobRequirement || '';\nconst notes = [analysis.notes || '', original.fetchNote || ''].filter(Boolean).join(' | ');\nconst applyPriority = analysis.applyPriority || 'Save for Learning';\nconst statusByPriority = {\n  'Apply Now': 'Shortlisted',\n  'Build Demo First': 'Needs Demo',\n  'Save for Learning': 'Learning',\n  'Skip': 'Archived'\n};\n\nreturn [{\n  json: {\n    'Date Added': new Date().toISOString().slice(0, 10),\n    'Source': original.source || '',\n    'Job Title': original.jobTitle || '',\n    'Job Link': original.jobLink || '',\n    'Recruiter Contact': analysis.recruiterContact || 'Not provided',\n    'Raw Requirement': original.rawRequirement || '',\n    'Full Job Requirement': fullJobRequirement,\n    'Job Category': analysis.jobCategory || '',\n    'Real Need': analysis.realNeed || '',\n    'Deliverable': analysis.deliverable || '',\n    'Required Tools': analysis.requiredTools || '',\n    'Required Skills': analysis.requiredSkills || '',\n    'Your Match Score': yourMatchScore,\n    'AI Leverage Score': aiLeverageScore,\n    'Async Fit Score': asyncFitScore,\n    'Learning Value': learningValue,\n    'Delivery Risk': deliveryRisk,\n    'Opportunity Score': opportunityScore,\n    'Starter Fit Score': starterFitScore,\n    'Can Start Now': analysis.canStartNow || 'Maybe',\n    'Apply Priority': applyPriority,\n    'Starter Fit Reason': analysis.starterFitReason || '',\n    'Missing Proof': analysis.missingProof || '',\n    'First 2-Hour Prep': analysis.firstTwoHourPrep || '',\n    'Recommended Skillset': analysis.recommendedSkillset || '',\n    'Learning Resource': analysis.learningResource || '',\n    'Learning Resource Links': analysis.learningResourceLinks || '',\n    'Knowledge Base Topic': analysis.knowledgeBaseTopic || '',\n    'Best Practice': analysis.bestPractice || '',\n    'Suggested Pitch': analysis.suggestedPitch || '',\n    'Next Action': analysis.nextAction || '',\n    'Status': statusByPriority[applyPriority] || 'Learning',\n    'Notes': notes\n  }\n}];"
+      },
+      "id": "cc59fdfc-6bcc-4942-8258-ff920d6420d8",
+      "name": "Parse Sheet Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_WITH_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Opportunities"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date Added": "={{ $json['Date Added'] }}",
+            "Source": "={{ $json.Source }}",
+            "Job Title": "={{ $json['Job Title'] }}",
+            "Job Link": "={{ $json['Job Link'] }}",
+            "Recruiter Contact": "={{ $json['Recruiter Contact'] }}",
+            "Raw Requirement": "={{ $json['Raw Requirement'] }}",
+            "Full Job Requirement": "={{ $json['Full Job Requirement'] }}",
+            "Job Category": "={{ $json['Job Category'] }}",
+            "Real Need": "={{ $json['Real Need'] }}",
+            "Deliverable": "={{ $json.Deliverable }}",
+            "Required Tools": "={{ $json['Required Tools'] }}",
+            "Required Skills": "={{ $json['Required Skills'] }}",
+            "Your Match Score": "={{ $json['Your Match Score'] }}",
+            "AI Leverage Score": "={{ $json['AI Leverage Score'] }}",
+            "Async Fit Score": "={{ $json['Async Fit Score'] }}",
+            "Learning Value": "={{ $json['Learning Value'] }}",
+            "Delivery Risk": "={{ $json['Delivery Risk'] }}",
+            "Opportunity Score": "={{ $json['Opportunity Score'] }}",
+            "Starter Fit Score": "={{ $json['Starter Fit Score'] }}",
+            "Can Start Now": "={{ $json['Can Start Now'] }}",
+            "Apply Priority": "={{ $json['Apply Priority'] }}",
+            "Starter Fit Reason": "={{ $json['Starter Fit Reason'] }}",
+            "Missing Proof": "={{ $json['Missing Proof'] }}",
+            "First 2-Hour Prep": "={{ $json['First 2-Hour Prep'] }}",
+            "Recommended Skillset": "={{ $json['Recommended Skillset'] }}",
+            "Learning Resource": "={{ $json['Learning Resource'] }}",
+            "Learning Resource Links": "={{ $json['Learning Resource Links'] }}",
+            "Knowledge Base Topic": "={{ $json['Knowledge Base Topic'] }}",
+            "Best Practice": "={{ $json['Best Practice'] }}",
+            "Suggested Pitch": "={{ $json['Suggested Pitch'] }}",
+            "Next Action": "={{ $json['Next Action'] }}",
+            "Status": "={{ $json.Status }}",
+            "Notes": "={{ $json.Notes }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "79f08a74-5fd2-4020-a3ed-c1198c97b124",
+      "name": "Append To Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        900,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Manual MVP: edit Set Job Input, run once, review one appended row in Google Sheets. After the scoring quality is useful, add automated sourcing.",
+        "height": 180,
+        "width": 280
+      },
+      "id": "f645380e-ac21-4522-bb4a-2d405ce8947c",
+      "name": "Workflow Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -860,
+        -260
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Job Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Job Input": {
+      "main": [
+        [
+          {
+            "node": "Fetch Job Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Job Page": {
+      "main": [
+        [
+          {
+            "node": "Prepare Job Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Job Text": {
+      "main": [
+        [
+          {
+            "node": "Build OpenAI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build OpenAI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Analyze With OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze With OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Parse Sheet Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Sheet Row": {
+      "main": [
+        [
+          {
+            "node": "Append To Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-06-11T00:00:00.000Z",
+  "versionId": "1"
+}

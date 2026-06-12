@@ -1,0 +1,22 @@
+Date,Source,Lead Name,Email,Phone,Company,Original Message,Need Summary,Lead Type,Urgency,Budget Signal,Problem Category,AI Qualification,Suggested Reply,Next Action,Follow-up Date,Status,Confidence Score,Notes
+2026-06-12,Website Form,Sarah Miller,sarah@example.com,+1 555 0134,Miller Home Services,"Hi, I need help setting up weekly cleaning for a 4-bedroom house starting next week. Can you send pricing and availability?",Needs weekly home cleaning starting next week and asks for pricing and availability.,Hot,High,Pricing request and near-term start date,Service Inquiry,Clear buying intent with timeline and contact details.,"Subject: Weekly cleaning availability
+
+Hi Sarah,
+
+Thanks for reaching out. We can help with weekly cleaning for a 4-bedroom home starting next week.
+
+Could you share your address or service area and your preferred cleaning day so we can confirm availability and send an accurate quote?
+
+Best,
+[Your Name]",Reply with availability and ask for address/area.,2026-06-13,New - Hot,9,Good demo lead for showing hot lead routing.
+2026-06-12,Facebook Lead Ad,James Carter,james@example.com,,Carter Coaching,Just browsing options for a virtual assistant. Not ready yet but curious about pricing.,Exploring virtual assistant options without immediate buying intent.,Warm,Medium,Asks about pricing but says not ready,Service Inquiry,Relevant but timing is unclear.,"Subject: Virtual assistant options
+
+Hi James,
+
+Thanks for reaching out. I can send over a quick overview of virtual assistant options and pricing ranges.
+
+What tasks would you want a virtual assistant to handle first?
+
+Best,
+[Your Name]",Send pricing overview and ask for tasks.,2026-06-15,New - Warm,7,Useful example for warm lead follow-up.
+2026-06-12,Website Form,Unknown,spam@example.com,,Unknown,We can rank your website #1 on Google fast. Buy backlinks now.,Promotional outreach rather than an inbound sales lead.,Spam,Low,No buyer signal,Spam,Irrelevant promotional message.,,Archive as spam.,2026-06-19,Archived - Spam,8,Shows spam filtering behavior.

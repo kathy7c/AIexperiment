@@ -1,0 +1,315 @@
+{
+  "name": "AI Lead Rescue Kit - Webhook to Google Sheets",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "3e8692b4-1f43-4d4c-8cc3-1001a2b4f508",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -980,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-rescue-kit",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "4bd00ba1-bd23-4442-b22d-6144c8328e87",
+      "name": "Lead Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -980,
+        -40
+      ],
+      "webhookId": "ai-lead-rescue-kit"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "source",
+              "name": "source",
+              "type": "string",
+              "value": "Website Form"
+            },
+            {
+              "id": "name",
+              "name": "name",
+              "type": "string",
+              "value": "Sarah Miller"
+            },
+            {
+              "id": "email",
+              "name": "email",
+              "type": "string",
+              "value": "sarah@example.com"
+            },
+            {
+              "id": "phone",
+              "name": "phone",
+              "type": "string",
+              "value": "+1 555 0134"
+            },
+            {
+              "id": "company",
+              "name": "company",
+              "type": "string",
+              "value": "Miller Home Services"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "type": "string",
+              "value": "Hi, I need help setting up weekly cleaning for a 4-bedroom house starting next week. Can you send pricing and availability?"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "db779964-2a91-4bd6-a3b8-e869e8c9a5d8",
+      "name": "Set Sample Lead",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -740,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json.body || $json;\nconst first = (...values) => {\n  for (const value of values) {\n    if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();\n  }\n  return '';\n};\n\nconst originalMessage = first(\n  input.message,\n  input.inquiry,\n  input.question,\n  input.details,\n  input.notes,\n  input.description,\n  input.body,\n  input.text\n);\n\nconst normalized = {\n  receivedAt: new Date().toISOString(),\n  source: first(input.source, input.form_name, input.formName, input.channel, 'Webhook'),\n  leadName: first(input.name, input.full_name, input.fullName, input.leadName, input.contact_name),\n  email: first(input.email, input.contact_email, input.Email),\n  phone: first(input.phone, input.telephone, input.mobile),\n  company: first(input.company, input.business, input.organization),\n  originalMessage,\n  rawPayload: JSON.stringify(input)\n};\n\nif (!normalized.originalMessage) {\n  normalized.originalMessage = normalized.rawPayload;\n}\n\nreturn [{ json: normalized }];"
+      },
+      "id": "854d81e7-35c9-4700-b2db-ac62341722df",
+      "name": "Normalize Lead Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -500,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const lead = $input.first().json;\n\nconst prompt = `You are an AI lead qualification assistant for a small service business.\n\nGoal: turn a new inbound inquiry into a clean Google Sheets CRM row and a human-reviewable follow-up draft.\n\nLead data:\n${JSON.stringify(lead, null, 2)}\n\nQualification rules:\n- leadType must be one of: Hot, Warm, Cold, Spam, Not a Lead.\n- urgency must be one of: High, Medium, Low.\n- confidenceScore must be 1-10.\n- Mark Hot when the person has a clear business need, contact details, and buying intent or urgency.\n- Mark Warm when the need is relevant but budget/timing is unclear.\n- Mark Cold when it is vague, early research, or low intent.\n- Mark Spam when it is promotional, irrelevant, suspicious, or mass outreach.\n- The suggestedReply must be a copy-paste-ready email draft, not a fragment. Format it exactly as:\n  Subject: <clear subject line>\n\n  Hi <name or there>,\n\n  <short personalized reply that acknowledges the need>\n\n  <one clear next-step question or call to action>\n\n  Best,\n  [Your Name]\n- Keep the email under 140 words. Do not pretend the email was sent. Do not include markdown.\n- nextAction must be one concrete action the business owner should take.\n- followUpDate should be an ISO date YYYY-MM-DD. Use tomorrow for Hot leads, 3 days from now for Warm leads, and 7 days from now for Cold leads.\n\nReturn only valid JSON. Do not wrap in markdown. Do not include comments.\nUse exactly these keys:\nneedSummary, leadType, urgency, budgetSignal, problemCategory, aiQualification, suggestedReply, nextAction, followUpDate, confidenceScore, notes`;\n\nreturn [{ json: { ...lead, prompt } }];"
+      },
+      "id": "ff25ce30-0637-4ce2-80ed-59279bb012e6",
+      "name": "Build OpenAI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_WITH_OPENAI_API_KEY"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 1200, temperature: 0.2, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: 'Return only valid JSON.' }, { role: 'user', content: $json.prompt }] }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "77d80df1-c5e3-48aa-855c-dac2da68880a",
+      "name": "Analyze Lead With OpenAI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        20,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst original = $items('Normalize Lead Input')[0].json;\nconst text = response.choices?.[0]?.message?.content || response.body?.choices?.[0]?.message?.content || '';\nconst match = String(text).match(/\\{[\\s\\S]*\\}/);\nif (!match) {\n  throw new Error('OpenAI response did not contain JSON: ' + text);\n}\n\nlet analysis;\ntry {\n  analysis = JSON.parse(match[0]);\n} catch (error) {\n  throw new Error('Could not parse OpenAI JSON: ' + error.message + ' Raw: ' + text);\n}\n\nconst clampScore = (value) => {\n  const number = Number(value);\n  if (Number.isNaN(number)) return 0;\n  return Math.max(1, Math.min(10, Math.round(number)));\n};\n\nconst leadType = analysis.leadType || 'Warm';\nconst statusByType = {\n  Hot: 'New - Hot',\n  Warm: 'New - Warm',\n  Cold: 'New - Cold',\n  Spam: 'Archived - Spam',\n  'Not a Lead': 'Archived - Not a Lead'\n};\n\nreturn [{\n  json: {\n    Date: new Date(original.receivedAt).toISOString().slice(0, 10),\n    Source: original.source || '',\n    'Lead Name': original.leadName || '',\n    Email: original.email || '',\n    Phone: original.phone || '',\n    Company: original.company || '',\n    'Original Message': original.originalMessage || '',\n    'Need Summary': analysis.needSummary || '',\n    'Lead Type': leadType,\n    Urgency: analysis.urgency || '',\n    'Budget Signal': analysis.budgetSignal || '',\n    'Problem Category': analysis.problemCategory || '',\n    'AI Qualification': analysis.aiQualification || '',\n    'Suggested Reply': analysis.suggestedReply || '',\n    'Next Action': analysis.nextAction || '',\n    'Follow-up Date': analysis.followUpDate || '',\n    Status: statusByType[leadType] || 'New - Review',\n    'Confidence Score': clampScore(analysis.confidenceScore),\n    Notes: analysis.notes || ''\n  }\n}];"
+      },
+      "id": "a7fd1de7-36d2-449e-b4dc-4a7d67d53eef",
+      "name": "Parse Lead Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        280,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_WITH_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Leads"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.Date }}",
+            "Source": "={{ $json.Source }}",
+            "Lead Name": "={{ $json['Lead Name'] }}",
+            "Email": "={{ $json.Email }}",
+            "Phone": "={{ $json.Phone }}",
+            "Company": "={{ $json.Company }}",
+            "Original Message": "={{ $json['Original Message'] }}",
+            "Need Summary": "={{ $json['Need Summary'] }}",
+            "Lead Type": "={{ $json['Lead Type'] }}",
+            "Urgency": "={{ $json.Urgency }}",
+            "Budget Signal": "={{ $json['Budget Signal'] }}",
+            "Problem Category": "={{ $json['Problem Category'] }}",
+            "AI Qualification": "={{ $json['AI Qualification'] }}",
+            "Suggested Reply": "={{ $json['Suggested Reply'] }}",
+            "Next Action": "={{ $json['Next Action'] }}",
+            "Follow-up Date": "={{ $json['Follow-up Date'] }}",
+            "Status": "={{ $json.Status }}",
+            "Confidence Score": "={{ $json['Confidence Score'] }}",
+            "Notes": "={{ $json.Notes }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "39511b90-f761-4556-a525-33ea3ed57461",
+      "name": "Append Lead To Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        540,
+        40
+      ]
+    },
+    {
+      "parameters": {
+        "content": "AI Lead Rescue Kit MVP: receive a lead via webhook or sample data, qualify it with OpenAI, generate a follow-up draft, and append a clean CRM row to Google Sheets. Configure OpenAI key and Google Sheet ID before use.",
+        "height": 220,
+        "width": 360
+      },
+      "id": "930286fe-dc6d-44d8-8603-67978a21ee39",
+      "name": "Workflow Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -980,
+        -360
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Sample Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Lead Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Sample Lead": {
+      "main": [
+        [
+          {
+            "node": "Normalize Lead Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Lead Input": {
+      "main": [
+        [
+          {
+            "node": "Build OpenAI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build OpenAI Prompt": {
+      "main": [
+        [
+          {
+            "node": "Analyze Lead With OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Lead With OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Parse Lead Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Lead Row": {
+      "main": [
+        [
+          {
+            "node": "Append Lead To Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-06-12T00:00:00.000Z",
+  "versionId": "1"
+}
