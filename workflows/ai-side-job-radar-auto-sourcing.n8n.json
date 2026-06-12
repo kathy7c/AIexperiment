@@ -1,0 +1,232 @@
+{
+  "name": "AI Side Job Radar - Auto Sourcing",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "0e70c14c-062d-4735-a4ab-0aa10e42fdc0",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -920,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "aa14db74-0cf9-4ea2-a17f-03e52fd26c3e",
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -920,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_WITH_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Opportunities"
+        },
+        "options": {}
+      },
+      "id": "7d309b31-7ea1-4d2e-82c4-9bcc9db69fc4",
+      "name": "Read Existing Opportunities",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -660,
+        20
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const MAX_JOBS_PER_RUN = 12;\nconst sources = [\n  {\n    name: 'n8n Community Jobs',\n    feedUrl: 'https://community.n8n.io/c/jobs/12.rss',\n    sourceType: 'rss'\n  },\n  {\n    name: 'Freelancer - n8n automation',\n    feedUrl: 'https://www.freelancer.com/rss.xml?keyword=n8n%20automation',\n    sourceType: 'rss'\n  },\n  {\n    name: 'Freelancer - Google Sheets automation',\n    feedUrl: 'https://www.freelancer.com/rss.xml?keyword=google%20sheets%20automation',\n    sourceType: 'rss'\n  },\n  {\n    name: 'Freelancer - Zapier Google Sheets',\n    feedUrl: 'https://www.freelancer.com/rss.xml?keyword=zapier%20google%20sheets',\n    sourceType: 'rss'\n  },\n  {\n    name: 'Freelancer - OpenAI Google Sheets',\n    feedUrl: 'https://www.freelancer.com/rss.xml?keyword=openai%20google%20sheets',\n    sourceType: 'rss'\n  },\n  {\n    name: 'Freelancer - workflow automation',\n    feedUrl: 'https://www.freelancer.com/rss.xml?keyword=workflow%20automation',\n    sourceType: 'rss'\n  }\n];\n\nconst positiveTerms = [\n  'n8n', 'zapier', 'make.com', 'make ', 'google sheets', 'spreadsheet', 'openai',\n  'chatgpt', 'ai automation', 'workflow automation', 'automation', 'lead capture',\n  'lead management', 'email classification', 'gmail', 'slack', 'crm', 'webhook',\n  'api integration', 'daily report', 'report automation', 'data cleanup', 'ai summary'\n];\n\nconst hardRejectTerms = [\n  'machine learning model', 'model training', 'deep learning', 'computer vision',\n  'full stack', 'full-stack', 'react developer', 'next.js', 'kubernetes', 'devops',\n  'aws infrastructure', 'docker expert', 'mobile app', 'ios app', 'android app',\n  'blockchain', 'solidity', 'trading bot', 'voice agent', 'vapi', 'twilio sip'\n];\n\nconst decodeEntities = (text) => String(text || '')\n  .replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, '$1')\n  .replace(/&nbsp;/g, ' ')\n  .replace(/&amp;/g, '&')\n  .replace(/&lt;/g, '<')\n  .replace(/&gt;/g, '>')\n  .replace(/&quot;/g, '\"')\n  .replace(/&#39;/g, \"'\")\n  .replace(/&#x2F;/g, '/')\n  .trim();\n\nconst stripHtml = (text) => decodeEntities(text)\n  .replace(/<script[\\s\\S]*?<\\/script>/gi, ' ')\n  .replace(/<style[\\s\\S]*?<\\/style>/gi, ' ')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nconst getTag = (block, tag) => {\n  const match = block.match(new RegExp(`<${tag}(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\\\/${tag}>`, 'i'));\n  return match ? decodeEntities(match[1]) : '';\n};\n\nconst getAtomLink = (block) => {\n  const href = block.match(/<link[^>]+href=[\"']([^\"']+)[\"'][^>]*>/i);\n  if (href) return decodeEntities(href[1]);\n  return getTag(block, 'link');\n};\n\nconst normalizeUrl = (value) => {\n  const raw = String(value || '').trim();\n  if (!raw) return '';\n  try {\n    const url = new URL(raw);\n    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'].forEach((key) => url.searchParams.delete(key));\n    return url.toString();\n  } catch {\n    return raw;\n  }\n};\n\nconst parseRss = (xml, source) => {\n  const blocks = xml.match(/<item[\\s\\S]*?<\\/item>|<entry[\\s\\S]*?<\\/entry>/gi) || [];\n  return blocks.map((block) => {\n    const title = stripHtml(getTag(block, 'title'));\n    const link = normalizeUrl(getAtomLink(block));\n    const description = stripHtml(\n      getTag(block, 'description') ||\n      getTag(block, 'content:encoded') ||\n      getTag(block, 'summary') ||\n      getTag(block, 'content')\n    ).slice(0, 30000);\n    const postedDate = stripHtml(getTag(block, 'pubDate') || getTag(block, 'updated') || getTag(block, 'published'));\n    return {\n      source: source.name,\n      sourceFeedUrl: source.feedUrl,\n      jobTitle: title,\n      jobLink: link,\n      rawRequirement: description || title,\n      postedDate,\n      requirementSource: 'auto_rss',\n      fetchNote: ''\n    };\n  }).filter((job) => job.jobTitle && job.jobLink);\n};\n\nconst existingLinks = new Set(\n  $input.all()\n    .map((item) => normalizeUrl(item.json['Job Link'] || item.json.jobLink || item.json.link || ''))\n    .filter(Boolean)\n);\nconst seenThisRun = new Set(existingLinks);\nconst candidates = [];\n\nfor (const source of sources) {\n  try {\n    const response = await fetch(source.feedUrl, {\n      headers: {\n        'User-Agent': 'Mozilla/5.0 (compatible; AI-Side-Job-Radar/1.0)'\n      }\n    });\n    if (!response.ok) continue;\n    const xml = await response.text();\n    for (const job of parseRss(xml, source)) {\n      const normalizedLink = normalizeUrl(job.jobLink);\n      if (!normalizedLink || seenThisRun.has(normalizedLink)) continue;\n      const haystack = `${job.jobTitle} ${job.rawRequirement}`.toLowerCase();\n      const hardRejected = hardRejectTerms.some((term) => haystack.includes(term));\n      if (hardRejected) continue;\n      const matchCount = positiveTerms.filter((term) => haystack.includes(term)).length;\n      if (matchCount === 0) continue;\n      seenThisRun.add(normalizedLink);\n      candidates.push({\n        ...job,\n        jobLink: normalizedLink,\n        keywordMatchCount: matchCount,\n        scrapedAt: new Date().toISOString()\n      });\n    }\n  } catch (error) {\n    // Keep the workflow resilient. Failed sources are skipped for this run.\n  }\n}\n\ncandidates.sort((a, b) => {\n  const scoreDiff = b.keywordMatchCount - a.keywordMatchCount;\n  if (scoreDiff) return scoreDiff;\n  return String(b.postedDate || '').localeCompare(String(a.postedDate || ''));\n});\n\nreturn candidates.slice(0, MAX_JOBS_PER_RUN).map((job) => ({ json: job }));"
+      },
+      "id": "88f3b21c-3b99-4551-a276-1471ef1691f2",
+      "name": "Fetch And Pre-Filter Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -380,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const OPENAI_API_KEY = 'REPLACE_WITH_OPENAI_API_KEY';\nconst OPENAI_MODEL = 'gpt-4o-mini';\nconst APPLY_PRIORITIES = new Set(['Apply Now', 'Build Demo First', 'Save for Learning', 'Skip']);\nconst CAN_START_VALUES = new Set(['Yes', 'Maybe', 'No']);\n\nif (!OPENAI_API_KEY || OPENAI_API_KEY.includes('REPLACE_WITH_')) {\n  throw new Error('Set OPENAI_API_KEY inside the Analyze And Format Rows node before running this workflow.');\n}\n\nconst profile = {\n  targetMarket: 'English market',\n  availableTime: '2 hours/day',\n  preferredWork: 'AI automation and AI tool setup',\n  toolsKnown: ['Cursor', 'OpenAI API', 'Feishu', 'n8n', 'Google Sheets'],\n  codingLevel: 'beginner Python',\n  meetingPreference: 'async-first, limited meetings',\n  portfolio: 'no public portfolio yet',\n  bestFitProjects: ['Google Sheets automation', 'n8n workflows', 'lead capture', 'email classification', 'AI summaries', 'daily reporting'],\n  avoidProjects: ['machine learning training', 'full-stack SaaS', 'complex backend systems', 'heavy meetings', 'production infrastructure ownership']\n};\n\nconst score = (value) => {\n  const number = Number(value);\n  if (Number.isNaN(number)) return 0;\n  return Math.max(1, Math.min(10, Math.round(number)));\n};\n\nconst parseAnalysis = (text) => {\n  const match = String(text || '').match(/\\{[\\s\\S]*\\}/);\n  if (!match) throw new Error('OpenAI response did not contain JSON: ' + text);\n  return JSON.parse(match[0]);\n};\n\nconst buildPrompt = (job) => `You are an opportunity analyst for a beginner AI automation freelancer.\n\nGoal: decide whether this side job is suitable for Kathy, and produce useful next actions for a Google Sheet.\n\nKathy profile:\n${JSON.stringify(profile, null, 2)}\n\nJob post data:\n${JSON.stringify(job, null, 2)}\n\nScore rules:\n- yourMatchScore: 1-10. Current capability match.\n- aiLeverageScore: 1-10. How much OpenAI/n8n/Sheets can help delivery.\n- asyncFitScore: 1-10. Higher means less meeting dependency.\n- learningValue: 1-10. Higher means useful skill compounding.\n- deliveryRisk: 1-10. Higher means more risk, ambiguity, hidden complexity, or maintenance burden.\n- starterFitScore: 1-10. Higher means Kathy can realistically start now with her current tools and beginner Python.\n\nStarter filter rules:\n- canStartNow must be one of: Yes, Maybe, No.\n- applyPriority must be one of: Apply Now, Build Demo First, Save for Learning, Skip.\n- Mark canStartNow as Yes only when the job is narrow, async-friendly, has a clear deliverable, can be built with Google Sheets/n8n/Zapier/Make/OpenAI, and does not require advanced backend, ML, production infrastructure, frequent meetings, or a strong existing portfolio.\n- Mark Build Demo First when the job is suitable but Kathy needs one small proof/demo before applying confidently.\n- Mark Save for Learning when it teaches useful skills but is too risky to apply now.\n- Mark Skip when the project is vague, too broad, meeting-heavy, full-stack, ML/model-training, infrastructure-heavy, or asks for expert ownership.\n\nRecommendation standard:\n- Favor narrow workflows, clear deliverables, Google Sheets, n8n, Zapier/Make, AI classification, AI summaries, lead capture, reporting, and status tracking.\n- Penalize full-stack apps, ML training, custom backend infrastructure, self-hosted production ownership, complex agents, frequent meetings, and vague enterprise transformation.\n- Be direct. If the job is not suitable, say so in nextAction.\n\nExtraction requirements:\n- recruiterContact: extract recruiter/client contact details if present, such as name, email, website, Slack/Discord, Telegram, booking link, or Freelancer/n8n profile info. If not present, return \"Not provided\".\n- learningResourceLinks: provide 2-4 directly useful learning URLs for the required skills. Prefer official docs and practical templates.\n- missingProof: what Kathy would need to show before applying, such as \"n8n lead capture demo\". If nothing is needed, return \"None\".\n- firstTwoHourPrep: one concrete prep task Kathy can finish in 2 hours before applying or building a demo.\n- starterFitReason: explain in one sentence why this is or is not starter-friendly.\n\nReturn only valid JSON. Do not wrap in markdown. Do not include comments.\nUse exactly these keys:\nrecruiterContact, jobCategory, realNeed, deliverable, requiredTools, requiredSkills, yourMatchScore, aiLeverageScore, asyncFitScore, learningValue, deliveryRisk, starterFitScore, canStartNow, applyPriority, starterFitReason, missingProof, firstTwoHourPrep, recommendedSkillset, learningResource, learningResourceLinks, knowledgeBaseTopic, bestPractice, suggestedPitch, nextAction, notes\n\nFor arrays, return short comma-separated strings instead of JSON arrays.\nFor suggestedPitch, write a concise English proposal under 140 words.`;\n\nconst rows = [];\n\nfor (const item of $input.all()) {\n  const job = item.json;\n  const response = await fetch('https://api.openai.com/v1/chat/completions', {\n    method: 'POST',\n    headers: {\n      Authorization: `Bearer ${OPENAI_API_KEY}`,\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify({\n      model: OPENAI_MODEL,\n      max_tokens: 1800,\n      temperature: 0.2,\n      response_format: { type: 'json_object' },\n      messages: [\n        { role: 'system', content: 'Return only valid JSON.' },\n        { role: 'user', content: buildPrompt(job) }\n      ]\n    })\n  });\n\n  if (!response.ok) {\n    const errorText = await response.text();\n    throw new Error(`OpenAI request failed ${response.status}: ${errorText}`);\n  }\n\n  const payload = await response.json();\n  const analysis = parseAnalysis(payload.choices?.[0]?.message?.content || '');\n  const yourMatchScore = score(analysis.yourMatchScore);\n  const aiLeverageScore = score(analysis.aiLeverageScore);\n  const asyncFitScore = score(analysis.asyncFitScore);\n  const learningValue = score(analysis.learningValue);\n  const deliveryRisk = score(analysis.deliveryRisk);\n  const starterFitScore = score(analysis.starterFitScore);\n  const opportunityScore = yourMatchScore + aiLeverageScore + asyncFitScore + learningValue - deliveryRisk;\n  const applyPriority = APPLY_PRIORITIES.has(analysis.applyPriority) ? analysis.applyPriority : 'Save for Learning';\n  const canStartNow = CAN_START_VALUES.has(analysis.canStartNow) ? analysis.canStartNow : 'Maybe';\n  const statusByPriority = {\n    'Apply Now': 'Shortlisted',\n    'Build Demo First': 'Needs Demo',\n    'Save for Learning': 'Learning',\n    'Skip': 'Archived'\n  };\n  const notes = [\n    analysis.notes || '',\n    job.postedDate ? `Posted: ${job.postedDate}` : '',\n    job.keywordMatchCount ? `Keyword matches: ${job.keywordMatchCount}` : ''\n  ].filter(Boolean).join(' | ');\n\n  rows.push({\n    json: {\n      'Date Added': new Date().toISOString().slice(0, 10),\n      'Source': job.source || '',\n      'Job Title': job.jobTitle || '',\n      'Job Link': job.jobLink || '',\n      'Recruiter Contact': analysis.recruiterContact || 'Not provided',\n      'Raw Requirement': job.rawRequirement || '',\n      'Full Job Requirement': job.rawRequirement || '',\n      'Job Category': analysis.jobCategory || '',\n      'Real Need': analysis.realNeed || '',\n      'Deliverable': analysis.deliverable || '',\n      'Required Tools': analysis.requiredTools || '',\n      'Required Skills': analysis.requiredSkills || '',\n      'Your Match Score': yourMatchScore,\n      'AI Leverage Score': aiLeverageScore,\n      'Async Fit Score': asyncFitScore,\n      'Learning Value': learningValue,\n      'Delivery Risk': deliveryRisk,\n      'Opportunity Score': opportunityScore,\n      'Starter Fit Score': starterFitScore,\n      'Can Start Now': canStartNow,\n      'Apply Priority': applyPriority,\n      'Starter Fit Reason': analysis.starterFitReason || '',\n      'Missing Proof': analysis.missingProof || '',\n      'First 2-Hour Prep': analysis.firstTwoHourPrep || '',\n      'Recommended Skillset': analysis.recommendedSkillset || '',\n      'Learning Resource': analysis.learningResource || '',\n      'Learning Resource Links': analysis.learningResourceLinks || '',\n      'Knowledge Base Topic': analysis.knowledgeBaseTopic || '',\n      'Best Practice': analysis.bestPractice || '',\n      'Suggested Pitch': analysis.suggestedPitch || '',\n      'Next Action': analysis.nextAction || '',\n      'Status': statusByPriority[applyPriority] || 'Learning',\n      'Notes': notes\n    }\n  });\n\n  await new Promise((resolve) => setTimeout(resolve, 250));\n}\n\nreturn rows;"
+      },
+      "id": "7b244afc-af0b-407a-9877-b3d5bd7dbbc1",
+      "name": "Analyze And Format Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "REPLACE_WITH_GOOGLE_SHEET_ID"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Opportunities"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date Added": "={{ $json['Date Added'] }}",
+            "Source": "={{ $json.Source }}",
+            "Job Title": "={{ $json['Job Title'] }}",
+            "Job Link": "={{ $json['Job Link'] }}",
+            "Recruiter Contact": "={{ $json['Recruiter Contact'] }}",
+            "Raw Requirement": "={{ $json['Raw Requirement'] }}",
+            "Full Job Requirement": "={{ $json['Full Job Requirement'] }}",
+            "Job Category": "={{ $json['Job Category'] }}",
+            "Real Need": "={{ $json['Real Need'] }}",
+            "Deliverable": "={{ $json.Deliverable }}",
+            "Required Tools": "={{ $json['Required Tools'] }}",
+            "Required Skills": "={{ $json['Required Skills'] }}",
+            "Your Match Score": "={{ $json['Your Match Score'] }}",
+            "AI Leverage Score": "={{ $json['AI Leverage Score'] }}",
+            "Async Fit Score": "={{ $json['Async Fit Score'] }}",
+            "Learning Value": "={{ $json['Learning Value'] }}",
+            "Delivery Risk": "={{ $json['Delivery Risk'] }}",
+            "Opportunity Score": "={{ $json['Opportunity Score'] }}",
+            "Starter Fit Score": "={{ $json['Starter Fit Score'] }}",
+            "Can Start Now": "={{ $json['Can Start Now'] }}",
+            "Apply Priority": "={{ $json['Apply Priority'] }}",
+            "Starter Fit Reason": "={{ $json['Starter Fit Reason'] }}",
+            "Missing Proof": "={{ $json['Missing Proof'] }}",
+            "First 2-Hour Prep": "={{ $json['First 2-Hour Prep'] }}",
+            "Recommended Skillset": "={{ $json['Recommended Skillset'] }}",
+            "Learning Resource": "={{ $json['Learning Resource'] }}",
+            "Learning Resource Links": "={{ $json['Learning Resource Links'] }}",
+            "Knowledge Base Topic": "={{ $json['Knowledge Base Topic'] }}",
+            "Best Practice": "={{ $json['Best Practice'] }}",
+            "Suggested Pitch": "={{ $json['Suggested Pitch'] }}",
+            "Next Action": "={{ $json['Next Action'] }}",
+            "Status": "={{ $json.Status }}",
+            "Notes": "={{ $json.Notes }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "7a1c9e47-4709-458a-8ed1-2669d956136b",
+      "name": "Append To Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        220,
+        20
+      ]
+    },
+    {
+      "parameters": {
+        "content": "Auto sourcing MVP: reads existing sheet links, fetches n8n Community + Freelancer RSS feeds, deduplicates, starter-filters with OpenAI, and appends scored rows. Fill OpenAI key inside Analyze And Format Rows and Sheet ID in both Google Sheets nodes.",
+        "height": 220,
+        "width": 360
+      },
+      "id": "bd4912b5-a349-4a36-a2fd-dd7df8061c27",
+      "name": "Workflow Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -920,
+        -360
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Existing Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Read Existing Opportunities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Existing Opportunities": {
+      "main": [
+        [
+          {
+            "node": "Fetch And Pre-Filter Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch And Pre-Filter Jobs": {
+      "main": [
+        [
+          {
+            "node": "Analyze And Format Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze And Format Rows": {
+      "main": [
+        [
+          {
+            "node": "Append To Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-06-12T00:00:00.000Z",
+  "versionId": "1"
+}

@@ -86,6 +86,12 @@ Import this workflow:
 workflows/ai-side-job-radar-manual-ingest.n8n.json
 ```
 
+For automatic sourcing, import this workflow:
+
+```text
+workflows/ai-side-job-radar-auto-sourcing.n8n.json
+```
+
 Then configure two nodes.
 
 ### 1. Analyze With OpenAI
@@ -123,6 +129,85 @@ https://docs.google.com/spreadsheets/d/SHEET_ID_HERE/edit
 ```
 
 Also connect your Google Sheets credential in n8n.
+
+## Auto Sourcing Workflow
+
+Use this workflow when you want the system to fetch jobs without pasting individual links:
+
+```text
+workflows/ai-side-job-radar-auto-sourcing.n8n.json
+```
+
+### What it does
+
+```text
+Manual Trigger or Daily Schedule
+-> Read existing Job Links from Opportunities
+-> Fetch n8n Community Jobs RSS and Freelancer RSS feeds
+-> Keyword pre-filter for starter-friendly automation jobs
+-> Deduplicate against existing Sheet rows
+-> OpenAI starter-fit analysis
+-> Append scored rows to Opportunities
+```
+
+### Current automatic sources
+
+No extra scraping account is required for these:
+
+```text
+n8n Community Jobs
+Freelancer - n8n automation
+Freelancer - Google Sheets automation
+Freelancer - Zapier Google Sheets
+Freelancer - OpenAI Google Sheets
+Freelancer - workflow automation
+```
+
+Upwork is not included in the no-account auto workflow because native Upwork RSS is no longer publicly available. Add Upwork later through a service such as Vollna, Apify, or SerpAPI.
+
+### Configure auto sourcing
+
+In `Read Existing Opportunities`:
+
+```text
+REPLACE_WITH_GOOGLE_SHEET_ID
+```
+
+In `Append To Google Sheet`:
+
+```text
+REPLACE_WITH_GOOGLE_SHEET_ID
+```
+
+In `Analyze And Format Rows`, replace:
+
+```javascript
+const OPENAI_API_KEY = 'REPLACE_WITH_OPENAI_API_KEY';
+```
+
+with your OpenAI API key.
+
+The workflow processes at most 12 new candidate jobs per run to control OpenAI cost. Change this value inside `Fetch And Pre-Filter Jobs` if needed:
+
+```javascript
+const MAX_JOBS_PER_RUN = 12;
+```
+
+### Daily schedule
+
+The workflow includes:
+
+```text
+Daily Schedule
+```
+
+Default interval:
+
+```text
+every 24 hours
+```
+
+Keep it inactive while testing. Run `Manual Trigger` first. After the rows look useful, activate the workflow.
 
 ## Manual Test
 
