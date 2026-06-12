@@ -14,6 +14,7 @@ This workspace stores reusable assets for the AI Side Job Radar workflow: n8n wo
 
 - `workflows/`: importable or source-controlled workflow files.
 - `docs/`: setup guides, workflow notes, prompts, and decision records.
+- `products/`: packaged digital products, including workflow templates, setup guides, sample data, and marketing copy.
 - `.cursor/rules/`: workspace operating rules.
 
 ## Naming
@@ -21,6 +22,7 @@ This workspace stores reusable assets for the AI Side Job Radar workflow: n8n wo
 - Use lowercase kebab-case for files.
 - Include the workflow purpose in file names, for example `ai-side-job-radar-manual-ingest.n8n.json`.
 - Keep secrets out of files. Use placeholders such as `REPLACE_WITH_OPENAI_API_KEY`.
+- Product packages should keep customer-facing assets together under `products/<product-name>/`.
 
 ## Workflow Principle
 
