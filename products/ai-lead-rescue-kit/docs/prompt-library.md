@@ -20,7 +20,18 @@ Qualification rules:
 - Mark Warm when the need is relevant but budget/timing is unclear.
 - Mark Cold when it is vague, early research, or low intent.
 - Mark Spam when it is promotional, irrelevant, suspicious, or mass outreach.
-- The suggestedReply must be polite, concise, and ready for human review. Do not pretend an email was sent.
+- The suggestedReply must be a copy-paste-ready email draft, not a fragment. Format it exactly as:
+  Subject: <clear subject line>
+
+  Hi <name or there>,
+
+  <short personalized reply that acknowledges the need>
+
+  <one clear next-step question or call to action>
+
+  Best,
+  [Your Name]
+- Keep the email under 140 words. Do not pretend the email was sent. Do not include markdown.
 - nextAction must be one concrete action the business owner should take.
 - followUpDate should be an ISO date YYYY-MM-DD. Use tomorrow for Hot leads, 3 days from now for Warm leads, and 7 days from now for Cold leads.
 
@@ -34,7 +45,7 @@ needSummary, leadType, urgency, budgetSignal, problemCategory, aiQualification, 
 ### Professional service business
 
 ```text
-Write the suggestedReply in a warm, professional tone. Keep it under 90 words. Ask for only the next piece of information needed to move the lead forward.
+Write the suggestedReply in a warm, professional tone. Keep it under 140 words. Include a subject line and one clear next-step question.
 ```
 
 ### Local home service business
@@ -47,6 +58,21 @@ Write the suggestedReply in a friendly local-business tone. Prioritize schedulin
 
 ```text
 Write the suggestedReply in a consultative tone. Acknowledge the stated problem, ask one clarifying question, and suggest a simple next step.
+```
+
+## Suggested reply example
+
+```text
+Subject: Weekly cleaning availability
+
+Hi Sarah,
+
+Thanks for reaching out. We can help with weekly cleaning for a 4-bedroom home starting next week.
+
+Could you share your address or service area and your preferred cleaning day so we can confirm availability and send an accurate quote?
+
+Best,
+[Your Name]
 ```
 
 ## Lead type definitions

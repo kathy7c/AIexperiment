@@ -7,7 +7,7 @@ After setup, every new lead sent to the webhook will be:
 1. normalized into a consistent lead record
 2. qualified by OpenAI
 3. assigned a lead type: Hot / Warm / Cold / Spam / Not a Lead
-4. given a suggested reply
+4. given a copy-paste-ready email draft
 5. logged into Google Sheets
 
 ## Step 1: Create the Google Sheet
@@ -170,6 +170,6 @@ After the test row looks correct:
 
 ## Human review rule
 
-This workflow creates a suggested reply. It does not send emails automatically.
+This workflow creates a copy-paste-ready email draft in `Suggested Reply`, including a subject line, greeting, body, next-step question, and signature placeholder. It does not send emails automatically.
 
 Review replies before sending.

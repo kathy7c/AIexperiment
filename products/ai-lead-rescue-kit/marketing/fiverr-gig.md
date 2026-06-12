@@ -29,7 +29,7 @@ What the workflow can do:
 - extract name, email, company, and message
 - classify leads as Hot / Warm / Cold / Spam
 - summarize the customer need
-- generate a suggested follow-up reply
+- generate a copy-paste-ready follow-up email draft
 - recommend the next action
 - save everything into Google Sheets
 ```

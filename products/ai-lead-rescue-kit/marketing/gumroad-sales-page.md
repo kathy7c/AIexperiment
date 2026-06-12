@@ -45,7 +45,7 @@ AI Lead Rescue Kit is a ready-to-import n8n workflow that turns form submissions
 Website form / webhook
 -> AI lead qualification
 -> Google Sheets CRM row
--> suggested reply
+-> copy-paste-ready email draft
 -> next action
 -> follow-up date
 ```
@@ -91,7 +91,7 @@ Not an auto-email sender.
 Not a replacement for human judgment.
 ```
 
-This workflow creates follow-up drafts for review. It does not automatically send emails.
+This workflow creates copy-paste-ready email drafts for review. It does not automatically send emails.
 
 ## Suggested pricing
 
@@ -120,7 +120,7 @@ The base version is webhook-first. Gmail can be added as a custom setup.
 
 ### Does it send emails automatically?
 
-No. It generates a suggested reply for human review.
+No. It generates a complete email draft for human review.
 
 ### Can I customize the lead scoring?
 

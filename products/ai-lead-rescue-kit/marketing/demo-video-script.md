@@ -61,7 +61,7 @@ Status
 ## Explain safety
 
 ```text
-The workflow does not automatically send emails. It creates a suggested reply so a human can review and send it.
+The workflow does not automatically send emails. It creates a complete email draft in Suggested Reply, including a subject line, greeting, body, next-step question, and signature placeholder, so a human can review and send it.
 ```
 
 ## Close
