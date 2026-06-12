@@ -50,6 +50,12 @@ Async Fit Score
 Learning Value
 Delivery Risk
 Opportunity Score
+Starter Fit Score
+Can Start Now
+Apply Priority
+Starter Fit Reason
+Missing Proof
+First 2-Hour Prep
 Recommended Skillset
 Learning Resource
 Learning Resource Links
@@ -140,6 +146,37 @@ Job Link: https://www.upwork.com/freelance-jobs/apply/Zapier-Automation-Workflow
 Raw Requirement: leave blank first. If Upwork blocks fetching, paste the job post text here as fallback.
 ```
 
+## Starter Filter
+
+Filter the sheet by:
+
+```text
+Can Start Now = Yes
+Apply Priority = Apply Now
+Status = Shortlisted
+```
+
+These are the jobs Kathy can reasonably apply to now.
+
+Use this interpretation:
+
+| Field | Meaning |
+| --- | --- |
+| Starter Fit Score | 1-10 score for how realistic the job is for Kathy's current stage |
+| Can Start Now | `Yes`, `Maybe`, or `No` |
+| Apply Priority | `Apply Now`, `Build Demo First`, `Save for Learning`, or `Skip` |
+| Missing Proof | What portfolio/demo proof is missing before applying confidently |
+| First 2-Hour Prep | One concrete prep task Kathy can do before applying or building a demo |
+
+The workflow marks `Status` automatically:
+
+| Apply Priority | Status |
+| --- | --- |
+| Apply Now | Shortlisted |
+| Build Demo First | Needs Demo |
+| Save for Learning | Learning |
+| Skip | Archived |
+
 ## Decision Rule
 
 Shortlist opportunities when:
@@ -149,6 +186,7 @@ Your Match Score >= 6
 AI Leverage Score >= 7
 Async Fit Score >= 8
 Delivery Risk <= 5
+Can Start Now = Yes
 ```
 
 Archive opportunities when:
